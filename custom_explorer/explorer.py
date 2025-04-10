@@ -1,10 +1,14 @@
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import OccupancyGrid
-from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, Twist
 from nav2_msgs.action import NavigateToPose
 from rclpy.action import ActionClient
 import numpy as np
+from tf2_ros import StaticTransformBroadcaster 
+from std_msgs.msg import Bool
+from std_srvs.srv import Trigger
+import time
 
 
 class ExplorerNode(Node):
@@ -34,6 +38,70 @@ class ExplorerNode(Node):
         # Timer to trigger exploration
         self.timer = self.create_timer(5.0, self.explore)
 
+        self.tf_broadcaster = StaticTransformBroadcaster(self)
+        self.publish_rate = 1.0  # Set your desired publish rate (Hz)
+        self.last_publish_time = self.get_clock().now()
+
+        self.heat_detected = False
+        self.heat_sub = self.create_subscription(Bool, '/heat_detected', self.heat_callback, 10)
+        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)  # If not already there
+
+        self.cli = self.create_client(Trigger, 'launch_projectile')
+        while not self.cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Waiting for launcher service...')
+
+    def pause_and_launch(self):
+        # Stop the robot
+        stop_msg = Twist()
+        self.cmd_vel_pub.publish(stop_msg)
+        time.sleep(1.0)  # Give it a moment to stop
+
+        # Call the launcher service
+        self.call_launcher()
+
+        # Resume exploration after launching
+        self.heat_detected = False
+        self.get_logger().info("Resuming exploration.")
+
+    def heat_callback(self, msg):
+        if msg.data and not self.heat_detected:
+            self.heat_detected = True
+            self.get_logger().info("Heat detected. Pausing exploration and launching.")
+            self.pause_and_launch()
+
+    def call_launcher(self):
+        req = Trigger.Request()
+        future = self.cli.call_async(req)
+        future.add_done_callback(self.launcher_response_callback)
+
+    def launcher_response_callback(self, future):
+        try:
+            result = future.result()
+            if result.success:
+                self.get_logger().info('Launcher activated')
+            else:
+                self.get_logger().error('Launcher failed: ' + result.message)
+        except Exception as e:
+            self.get_logger().error(f"Service call failed: {e}")
+
+    def publish_navigation_goal(self, x, y):
+        current_time = self.get_clock().now()
+        if (current_time - self.last_publish_time).seconds < (1 / self.publish_rate):
+            return
+
+        # Proceed with publishing the goal
+        goal_msg = PoseStamped()
+        goal_msg.header.frame_id = 'map'
+        goal_msg.header.stamp = current_time.to_msg()
+        goal_msg.pose.position.x = x
+        goal_msg.pose.position.y = y
+        goal_msg.pose.orientation.w = 1.0
+
+        nav_goal = NavigateToPose.Goal()
+        nav_goal.pose = goal_msg
+        self.nav_to_pose_client.send_goal_async(nav_goal)
+        self.last_publish_time = current_time
+
     def map_callback(self, msg):
         self.map_data = msg
         self.get_logger().info_once("Map received")
@@ -58,36 +126,51 @@ class ExplorerNode(Node):
             (self.map_data.info.height, self.map_data.info.width))
 
         frontiers = self.find_frontiers(map_array)
+        unexplored_areas = self.check_unexplored_areas(map_array)
+        if unexplored_areas:
+            self.get_logger().info(f"Found unexplored areas. Re-initiating exploration.")
+            frontiers.extend(unexplored_areas)
+
         if not frontiers:
             self.get_logger().info("No frontiers found. Exploration complete!")
+            self.retry_from_furthest_area()
             return
 
-        # Dead-end detection: Are there any frontiers adjacent to robot?
-        current_frontier_neighbors = [
-            f for f in frontiers if self.is_neighbor(f, self.robot_position)
-        ]
-        self.is_backtracking = len(current_frontier_neighbors) == 0
-
+        # Choose the closest frontier
         chosen_frontier = self.choose_frontier(frontiers)
+
         if not chosen_frontier:
             self.get_logger().warning("No suitable frontier to explore")
+            self.retry_from_furthest_area()
             return
 
-        goal_x = chosen_frontier[1] * self.map_data.info.resolution + self.map_data.info.origin.position.x
-        goal_y = chosen_frontier[0] * self.map_data.info.resolution + self.map_data.info.origin.position.y
+        world_x = chosen_frontier[1] * self.map_data.info.resolution + self.map_data.info.origin.position.x
+        world_y = chosen_frontier[0] * self.map_data.info.resolution + self.map_data.info.origin.position.y
+        
+        self.navigate_to(world_x, world_y)
 
-        self.visited_world_positions.add((round(goal_x, 2), round(goal_y, 2)))
-        self.navigate_to(goal_x, goal_y)
+    def retry_from_furthest_area(self):
+        if not self.visited_world_positions:
+            self.get_logger().warning("No visited positions to go back to.")
+            return
+
+        # Find the furthest position from the robot
+        robot_x, robot_y = self.robot_pose_world
+        furthest_pos = max(self.visited_world_positions, key=lambda pos: np.sqrt((robot_x - pos[0])**2 + (robot_y - pos[1])**2))
+        self.get_logger().info(f"Retrying from the furthest position: {furthest_pos}")
+        self.navigate_to(*furthest_pos)
 
     def find_frontiers(self, map_array):
         frontiers = []
         rows, cols = map_array.shape
 
+        # Identify potential frontiers
         for r in range(1, rows - 1):
             for c in range(1, cols - 1):
-                if map_array[r, c] == 0:
+                if map_array[r, c] == 0:  # Free cell
+                    # Check if any neighbors are unknown (frontiers)
                     neighbors = map_array[r-1:r+2, c-1:c+2].flatten()
-                    if -1 in neighbors:
+                    if -1 in neighbors:  # If there's an unknown cell, this is a frontier
                         frontiers.append((r, c))
 
         self.get_logger().info(f"Found {len(frontiers)} frontiers")
@@ -110,6 +193,9 @@ class ExplorerNode(Node):
                 continue
 
             distance = np.sqrt((robot_row - frontier[0])**2 + (robot_col - frontier[1])**2)
+            # Add condition to skip close frontiers
+            if distance < 0.3:
+                continue
             if distance < min_distance:
                 min_distance = distance
                 chosen_frontier = frontier
@@ -117,7 +203,23 @@ class ExplorerNode(Node):
         if chosen_frontier:
             self.visited_frontiers.add(chosen_frontier)
             self.get_logger().info(f"Chosen frontier: {chosen_frontier}")
+            
         return chosen_frontier
+
+    def check_unexplored_areas(self, map_array):
+        """
+        Check for areas that have not been explored and return them as new frontiers.
+        """
+        unexplored_areas = []
+        rows, cols = map_array.shape
+
+        # Iterate through the entire map to find unexplored regions
+        for r in range(rows):
+            for c in range(cols):
+                if map_array[r, c] == -1 and (r, c) not in self.visited_frontiers:
+                    unexplored_areas.append((r, c))
+
+        return unexplored_areas
 
     def navigate_to(self, x, y):
         goal_msg = PoseStamped()
@@ -129,6 +231,10 @@ class ExplorerNode(Node):
 
         nav_goal = NavigateToPose.Goal()
         nav_goal.pose = goal_msg
+
+        # Add transform tolerance
+        nav_goal.transform_tolerance.sec = 1
+        nav_goal.transform_tolerance.nanosec = 0
 
         self.get_logger().info(f"Navigating to goal: x={x:.2f}, y={y:.2f}")
         self.nav_to_pose_client.wait_for_server()
