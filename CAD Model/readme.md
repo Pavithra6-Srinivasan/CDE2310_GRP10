@@ -1,7 +1,7 @@
 ///CORE DESIGN FEATURES///
 - Tube storing balls wrap around the turtlebot with a slight inclination (~5deg)
     - Reduces the length & width of entire turtlebot, allowing it to traverse tighter spaces
-    - Roughly symmertrical design keeps center of gravity near the center of the robot
+    - Roughly symmertrical design keeps center of gravity near the center of the robot & as low as possible
     - Slight inclination decreases the height required for the tube
 - Balls are gravity fed into the barrel
 - Two counterspinng flywheels are mounted at the top of the barrel to launch the ball
