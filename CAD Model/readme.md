@@ -16,7 +16,7 @@
     - Prevent LiDAR from being blocked
 
 ///FINER DESIGN FEATURES///
-- 1.5cm diammeter hole along tube
+- 1.5cm wide hole along tube
     - Allows for quick trounbleshooting of balls not feeding into barrel/rolling through the tube
     - Allows for quick & easy removal of balls from tube
 - RPi & USB2LDS shifted away from original position
@@ -25,6 +25,7 @@
     - Markers for alignment
 - Tube support pieces are designed to be slightly lower than required
     - Allows for physical modification due to possible mismatches between physical and virtual design
+    - e.g. adding sponge/foam material to prop up tube OR allow tube to be fitted lower (if required)
 - Tube inner diammeter is designed to have 5mm tolerance
 - Barrel inner diammeter tapers from 5mm tolerance to 1mm tolerance
     - Ensure preicision when launching
