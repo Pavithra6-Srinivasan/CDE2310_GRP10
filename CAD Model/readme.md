@@ -29,3 +29,8 @@
 - Tube inner diammeter is designed to have 5mm tolerance
 - Barrel inner diammeter tapers from 5mm tolerance to 1mm tolerance
     - Ensure preicision when launching
+
+///Version Changes///
+Ver 1: Tube wraps around turtlebot, a solenoid is used to launch the balls into the air
+Ver 2: Slight modifications to certain parts (tolerances, dimensions, added hole along tube)
+Ver 3: Added motor & flywheels to launch the balls, solenoid replaced with a weaker one to push the balls into flywheel, slight changes to dimensions
