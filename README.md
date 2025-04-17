@@ -28,7 +28,7 @@ On RPi- Terminal 2:
     cd ~/ros2_ws
     colcon build --packages-select launcher_service
     source install/setup.bash
-    
+
     source ~/ros2_ws/install/setup.bash
     ros2 run launcher_service heat_seeker_node
 
