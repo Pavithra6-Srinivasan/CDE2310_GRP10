@@ -1,10 +1,35 @@
 # CDE2310 Autonomous Heat-Seeking Robot with Thermal Detection and Projectile Launching
 
-This repository contains a ROS 2 package implementing an autonomous frontier exploration algorithm using Nav2. The Explorer Node subscribes to a map, detects frontiers, and sends navigation goals to explore the environment.
+**Objective:** Develop an autonomous robot capable of detecting heat sources using a thermal sensor, aligning itself towards the source, approaching it, and launching a projectile upon reaching a specified temperature threshold.
 
 ---
 
 ## Features
+
+Hardware Components:
+
+    Raspberry Pi 4 Model B
+
+    AMG8833 Thermal Camera
+
+    Servo Motor for Projectile Launching
+
+    DC Motors with Motor Driver
+
+    Power Supply (Battery Pack)
+
+    Chassis and Wheels​
+    techwithmaddy.com+5GitHub+5WIRED+5
+
+Software Components:
+
+    ROS 2 (Robot Operating System)
+
+    Python 3
+
+    Custom ROS 2 Nodes: heat_seeker_node.py, explorer.py
+
+    Libraries: numpy, rclpy, adafruit_amg88xx, geometry_msgs, std_msgs
 
 - **Frontier Detection**: Automatically detects frontiers (unknown areas) in the map.
 - **Autonomous Navigation**: Uses Nav2's `NavigateToPose` action to navigate to frontiers.
