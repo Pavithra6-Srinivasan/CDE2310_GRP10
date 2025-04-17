@@ -15,7 +15,7 @@ IN3 = 6
 IN4 = 5
 
 #pin for solenoid
-SOLENOID = 16
+SOLENOID = 11
 
 # GPIO setup
 GPIO.setmode(GPIO.BCM)
@@ -75,19 +75,29 @@ def solenoid_activation():
     print("launched 1 ball")
 
 def test():
-    print("a")
-    GPIO.output(SOLENOID, GPIO.HIGH)
-    time.sleep(10)
-    GPIO.output(SOLENOID, GPIO.LOW)
-    print("b")
-
-def launch():
-    motor_forward(75)
+    motor_forward(62)
     print("Motors moving")
-    #time.sleep(1)
+    time.sleep(1)
     solenoid_activation() #1+1 delay
+    motor_forward(52)
     time.sleep(3)
     solenoid_activation() #3+1 delay
+    motor_forward(52)
+    time.sleep(1)
+    solenoid_activation() #1+1 delay
+    time.sleep(1) #to give time for ball to leave
+    motor_stop()
+    print("Motors stopped")
+
+def launch():
+    motor_forward(70)
+    print("Motors moving")
+    time.sleep(1)
+    solenoid_activation() #1+1 delay
+    motor_forward(60)
+    time.sleep(3)
+    solenoid_activation() #3+1 delay
+    motor_forward(60)
     time.sleep(1)
     solenoid_activation() #1+1 delay
     time.sleep(1) #to give time for ball to leave
@@ -119,3 +129,9 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+def on():
+        GPIO.output(SOLENOID, GPIO.HIGH)
+        print("ON")
+def off():
+        GPIO.output(SOLENOID,GPIO.LOW)
+        print("OFF")
