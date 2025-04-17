@@ -32,10 +32,6 @@ class ExplorerNode(Node):
         while not self.cli.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('Waiting for trigger service...')
 
-        # Resume exploration service
-        self.resume_srv = self.create_service(
-            Trigger, 'resume_exploration', self.handle_resume_exploration, callback_group=self.cb_group)
-
         # State
         self.map_data = None
         self.robot_position = (0, 0)
@@ -55,6 +51,9 @@ class ExplorerNode(Node):
         self.stop_srv = self.create_service(
             Trigger, 'stop_navigation', self.handle_stop_navigation, callback_group=self.cb_group)
 
+        self.resume_srv = self.create_service(
+            Trigger, 'resume_navigation', self.handle_resume_exploration, callback_group=self.cb_group)
+
         self.active_goal_handle = None
 
         self.initial_pose = None
@@ -62,22 +61,29 @@ class ExplorerNode(Node):
         self.launch_distance_threshold = 0.4
 
         # Add stop/resume services
-        self.create_service(Trigger, 'stop_navigation', self.handle_stop_navigation)
-        self.create_service(Trigger, 'resume_navigation', self.handle_resume_exploration)
+        #self.create_service(Trigger, 'stop_navigation', self.handle_stop_navigation)
+        #self.create_service(Trigger, 'resume_navigation', self.handle_resume_exploration)
 
         # Track paused state
         self.paused = False
 
-        # Timer or logic to periodically check and act
-        self.timer = self.create_timer(0.5, self.explore_step)
-
     # ------------------------ Heat Handling ------------------------
 
     def handle_stop_navigation(self, request, response):
-        self.get_logger().warn("STOP command received from heat_seeker.")
-        self.paused = True
+        self.get_logger().info("Received request to stop navigation")
+
+        # Cancel active navigation goal
+        if self.active_goal_handle is not None:
+            cancel_future = self.active_goal_handle.cancel_goal_async()
+            cancel_future.add_done_callback(self._cancel_done_callback)
+            self.active_goal_handle = None
+
+        # Stop the robot
+        stop_msg = Twist()
+        self.cmd_vel_pub.publish(stop_msg)
+
         response.success = True
-        response.message = "Navigation paused."
+        response.message = "Navigation stopped"
         return response
 
     def handle_resume_exploration(self, request, response):
@@ -86,10 +92,6 @@ class ExplorerNode(Node):
         response.success = True
         response.message = "Navigation resumed."
         return response
-
-    def explore_step(self):
-        if self.paused:
-            return  # Don't do anything if paused
 
     # ------------------------ Navigation ------------------------
 
@@ -173,25 +175,10 @@ class ExplorerNode(Node):
     
     def stop_robot(self):
         stop_msg = Twist()
+        stop_msg.linear.x = 0.0
+        stop_msg.angular.z = 0.0
         self.cmd_vel_pub.publish(stop_msg)
         self.get_logger().info("Robot stopped.")
-
-    def handle_stop_navigation(self, request, response):
-        self.get_logger().info("Received request to stop navigation")
-
-        # Cancel active navigation goal
-        if self.active_goal_handle is not None:
-            cancel_future = self.active_goal_handle.cancel_goal_async()
-            cancel_future.add_done_callback(self._cancel_done_callback)
-            self.active_goal_handle = None
-
-        # Stop the robot
-        stop_msg = Twist()
-        self.cmd_vel_pub.publish(stop_msg)
-
-        response.success = True
-        response.message = "Navigation stopped"
-        return response
 
     def _cancel_done_callback(self, future):
         cancel_response = future.result()
