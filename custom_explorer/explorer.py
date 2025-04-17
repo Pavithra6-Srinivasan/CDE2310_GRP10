@@ -19,7 +19,6 @@ class ExplorerNode(Node):
         # Subscriptions
         self.map_sub = self.create_subscription(OccupancyGrid, '/map', self.map_callback, 10)
         self.pose_sub = self.create_subscription(PoseWithCovarianceStamped, '/amcl_pose', self.pose_callback, 10)
-        self.heat_sub = self.create_subscription(Bool, '/heat_detected', self.heat_callback, 10)
 
         # Publishers
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
@@ -33,6 +32,10 @@ class ExplorerNode(Node):
         while not self.cli.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('Waiting for trigger service...')
 
+        # Resume exploration service
+        self.resume_srv = self.create_service(
+            Trigger, 'resume_exploration', self.handle_resume_exploration, callback_group=self.cb_group)
+
         # State
         self.map_data = None
         self.robot_position = (0, 0)
@@ -40,7 +43,7 @@ class ExplorerNode(Node):
         self.visited_frontiers = set()
         self.visited_world_positions = set()
         self.is_backtracking = False
-        self.heat_detected = False
+        #self.heat_detected = False
         self.heat_handling = False  # True when launching
         self.tf_broadcaster = StaticTransformBroadcaster(self)
 
@@ -55,56 +58,43 @@ class ExplorerNode(Node):
         self.active_goal_handle = None
 
         self.initial_pose = None
+        self.launched_positions = set()
+        self.launch_distance_threshold = 0.4
+
+        # Add stop/resume services
+        self.create_service(Trigger, 'stop_navigation', self.handle_stop_navigation)
+        self.create_service(Trigger, 'resume_navigation', self.handle_resume_exploration)
+
+        # Track paused state
+        self.paused = False
+
+        # Timer or logic to periodically check and act
+        self.timer = self.create_timer(0.5, self.explore_step)
 
     # ------------------------ Heat Handling ------------------------
 
-    def heat_callback(self, msg):
-        if msg.data and not self.heat_handling:
-            self.heat_detected = True
-            self.heat_handling = True
-            self.get_logger().info("Heat detected! Cancelling current goal and launching...")
-            self.pause_and_launch()
+    def handle_stop_navigation(self, request, response):
+        self.get_logger().warn("STOP command received from heat_seeker.")
+        self.paused = True
+        response.success = True
+        response.message = "Navigation paused."
+        return response
 
-    def pause_and_launch(self):
-        # Cancel current goal
-        if self.current_goal_handle:
-            self.current_goal_handle.cancel_goal_async()
+    def handle_resume_exploration(self, request, response):
+        self.get_logger().info("RESUME command received from heat_seeker.")
+        self.paused = False
+        response.success = True
+        response.message = "Navigation resumed."
+        return response
 
-        # Stop movement
-        stop_msg = Twist()
-        self.cmd_vel_pub.publish(stop_msg)
-        time.sleep(1.0)
-
-        # Trigger launcher
-        req = Trigger.Request()
-        future = self.cli.call_async(req)
-        future.add_done_callback(self.launcher_response_callback)
-
-    def call_launcher(self):
-        req = Trigger.Request()
-        future = self.cli.call_async(req)
-        future.add_done_callback(self.launcher_response_callback)
-
-    def launcher_response_callback(self, future):
-        try:
-            result = future.result()
-            if result.success:
-                self.get_logger().info('Launcher activated')
-            else:
-                self.get_logger().error('Launcher failed: ' + result.message)
-        except Exception as e:
-            self.get_logger().error(f"Launcher service call failed: {e}")
-
-        # Resume exploration
-        self.heat_detected = False
-        self.heat_handling = False
-        self.get_logger().info("Resuming exploration after heat handling.")
+    def explore_step(self):
+        if self.paused:
+            return  # Don't do anything if paused
 
     # ------------------------ Navigation ------------------------
 
     def map_callback(self, msg):
         self.map_data = msg
-
 
     def pose_callback(self, msg):
         pose = msg.pose.pose
@@ -172,8 +162,19 @@ class ExplorerNode(Node):
     def navigation_complete_callback(self, future):
         if self.heat_handling:
             self.get_logger().info("Navigation interrupted due to heat.")
+            self.stop_robot()  # Ensure robot stops if interrupted by heat
             return
+
         self.get_logger().info("Navigation completed.")
+        # self.stop_robot()  # Ensure robot stops after navigation completes
+
+        # After stopping, find the next frontier to navigate to
+        self.explore()  # Trigger the exploration process again
+    
+    def stop_robot(self):
+        stop_msg = Twist()
+        self.cmd_vel_pub.publish(stop_msg)
+        self.get_logger().info("Robot stopped.")
 
     def handle_stop_navigation(self, request, response):
         self.get_logger().info("Received request to stop navigation")
