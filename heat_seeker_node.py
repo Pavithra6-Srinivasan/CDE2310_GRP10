@@ -7,6 +7,7 @@ import busio
 import time
 import numpy as np
 from std_msgs.msg import Bool
+from geometry_msgs.msg import Twist
 
 class HeatSeekerNode(Node):
     def __init__(self):
@@ -41,6 +42,7 @@ class HeatSeekerNode(Node):
 
         # Publisher to notify explorer
         self.heat_pub = self.create_publisher(Bool, '/heat_detected', 10)
+        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
 
         # Faster checking rate
         self.timer = self.create_timer(0.5, self.check_heat)
@@ -98,6 +100,13 @@ class HeatSeekerNode(Node):
     def launch_projectile(self):
         try:
             from . import launcher  # Local module for actual launching
+
+            # Force stop robot immediately
+            twist = Twist()
+            twist.linear.x = 0.0
+            twist.angular.z = 0.0
+            self.cmd_vel_pub.publish(twist)
+
             self.get_logger().info("=== LAUNCHING PROJECTILE ===")
             launcher.launch()
             self.get_logger().info("Launch complete!")
@@ -135,9 +144,8 @@ class HeatSeekerNode(Node):
         self.heat_detection_count = 0
 
     def trigger_launcher_callback(self, request, response):
-        # Called externally (e.g., by explorer.py)
         if not self.has_launched:
-            self.get_logger().info("📨 Received trigger_launcher service call.")
+            self.get_logger().info("Received trigger_launcher service call.")
             self.has_launched = True
             self.call_service(self.stop_client, "stop_navigation", self.handle_stop_response)
             response.success = True
@@ -146,7 +154,6 @@ class HeatSeekerNode(Node):
             response.success = False
             response.message = "Launcher already triggered."
         return response
-
 def main(args=None):
     rclpy.init(args=args)
     try:
