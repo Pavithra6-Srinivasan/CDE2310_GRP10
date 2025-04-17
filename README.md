@@ -1,4 +1,4 @@
-# Autonomous Explorer Node for Frontier Exploration
+# CDE2310
 
 This repository contains a ROS 2 package implementing an autonomous frontier exploration algorithm using Nav2. The Explorer Node subscribes to a map, detects frontiers, and sends navigation goals to explore the environment.
 
@@ -12,79 +12,39 @@ This repository contains a ROS 2 package implementing an autonomous frontier exp
 - **ROS 2-Based**: Compatible with ROS 2 (tested on Humble or Foxy distribution).
 - **Customizable Timer**: Adjust the exploration frequency as needed.
 
----
-
-## Requirements
-
-- ROS 2 (Humble/Foxy)
-- Python 3
-- TurtleBot3 packages installed
-- Nav2 installed and configured for your robot
-- SLAM Toolbox installed
-- `numpy` Python library
-
----
-
 ## Setup
 
-1. Clone the repository into your ROS 2 workspace:
+colcon build --packages-select custom_explorer
 
-    ```bash
-    cd ~/ros2_ws/src
-    git clone https://github.com/AniArka/Autonomous-Explorer-and-Mapper-ros2-nav2.git
-    cd ~/ros2_ws
-    colcon build
-    ```
+On RPi - Terminal 1:
 
-2. Install dependencies:
+source ~/turtlebot3_ws/install/setup.bash
+ros2 launch turtlebot3_bringup robot.launch.py
 
-    ```bash
-    pip install numpy
-    ```
+On RPi- Terminal 2:
 
-3. Source the workspace:
+    '''cd ~/ros2_ws
+    colcon build --packages-select launcher_service
+    source install/setup.bash
+    '''
+source ~/ros2_ws/install/setup.bash
+ros2 run launcher_service heat_seeker_node
 
-    ```bash
-    source ~/ros2_ws/install/setup.bash
-    ```
+On Laptop - Terminal 1:
 
----
+ros2 launch slam_toolbox online_async_launch.py use_sim_time:=false
 
-## Testing with TurtleBot3
+On Laptop - Terminal 2:
 
-Follow these steps to test the Explorer Node with TurtleBot3 in a Gazebo simulation:
+ros2 launch nav2_bringup navigation_launch.py use_sim_time:=false params_file:=/home/pavithra/colcon_ws/src/Autonomous-Explorer-and-Mapper-ros2-nav2/nav2_params.yaml
 
-1. Launch the TurtleBot3 world in Gazebo:
+On Laptop - Terminal 3:
 
-    ```bash
-    ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
-    ```
+ros2 run custom_explorer explorer
 
-2. Start the Nav2 stack:
+On Laptop - Terminal 4:
 
-    ```bash
-    ros2 launch nav2_bringup navigation_launch.py use_sim_time:=True
-    ```
-
-3. Launch SLAM Toolbox for mapping:
-
-    ```bash
-    ros2 launch slam_toolbox online_async_launch.py
-    ```
-
-4. Launch RViz for visualization:
-
-    ```bash
-    ros2 launch nav2_bringup rviz_launch.py
-    ```
-
-5. Run the Explorer Node:
-
-    ```bash
-    ros2 run custom_explorer explorer
-    ```
-
----
+ros2 launch nav2_bringup rviz_launch.py
 
 ## How It Works
 
@@ -101,30 +61,6 @@ Follow these steps to test the Explorer Node with TurtleBot3 in a Gazebo simulat
 - `requirements.txt`: Python dependencies.
 - `README.md`: Project documentation.
 
----
-
-## Example Workflow
-
-1. **Start the TurtleBot3 simulation environment**.
-2. **Run the Explorer Node** as shown in the "Testing with TurtleBot3" section.
-3. **Visualize progress in RViz** as the robot autonomously explores the environment.
-
----
-
-## Future Improvements
-
-- Add support for multi-robot exploration.
-- Implement a more advanced frontier selection algorithm.
-- Optimize for larger environments.
-
----
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues or pull requests.
-
----
-
 
 ## Acknowledgments
 
@@ -132,3 +68,4 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 - [Nav2](https://navigation.ros.org/)
 - [SLAM Toolbox](https://github.com/SteveMacenski/slam_toolbox)
 - [TurtleBot3](https://www.turtlebot.com/)
+- [explorer.py code](https://github.com/AniArka/Autonomous-Explorer-and-Mapper-ros2-nav2)
