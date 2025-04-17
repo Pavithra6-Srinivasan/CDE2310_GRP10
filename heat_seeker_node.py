@@ -34,9 +34,9 @@ class HeatSeekerNode(Node):
         self.resume_client = self.create_client(Trigger, 'resume_navigation')
 
         # Heat detection parameters
-        self.heat_threshold = 32.0
+        self.heat_threshold = 30.0
         self.heat_detection_count = 0
-        self.detection_threshold = 3  # Require 3 consecutive detections
+        self.detection_threshold = 1  # Require 3 consecutive detections
         self.has_launched = False
 
         # Publisher to notify explorer
@@ -61,8 +61,8 @@ class HeatSeekerNode(Node):
 
             # Heat detection logic
             if max_temp > self.heat_threshold:
-                self.heat_detection_count += 1
-                if self.heat_detection_count >= self.detection_threshold and not self.has_launched:
+
+                if not self.has_launched:
                     self.handle_heat_detected()
             else:
                 self.heat_detection_count = 0
@@ -71,7 +71,7 @@ class HeatSeekerNode(Node):
             self.get_logger().error(f"Sensor error: {e}")
 
     def handle_heat_detected(self):
-        self.get_logger().warning("=== HEAT SOURCE CONFIRMED ===")
+        self.get_logger().warning(" HEAT SOURCE DETECTED")
         self.has_launched = True
 
         # Notify explorer
@@ -153,7 +153,7 @@ def main(args=None):
         node = HeatSeekerNode()
         rclpy.spin(node)
     except Exception as e:
-        node.get_logger().error(f"Node crashed: {e}")
+        print(f"Node crashed: {e}")
     finally:
         rclpy.shutdown()
 
