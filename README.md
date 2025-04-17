@@ -18,8 +18,8 @@ colcon build --packages-select custom_explorer
 
 On RPi - Terminal 1:
 
-source ~/turtlebot3_ws/install/setup.bash
-ros2 launch turtlebot3_bringup robot.launch.py
+    source ~/turtlebot3_ws/install/setup.bash
+    ros2 launch turtlebot3_bringup robot.launch.py
 
 On RPi- Terminal 2:
 
@@ -27,24 +27,28 @@ On RPi- Terminal 2:
     colcon build --packages-select launcher_service
     source install/setup.bash
     
-source ~/ros2_ws/install/setup.bash
-ros2 run launcher_service heat_seeker_node
+    source ~/ros2_ws/install/setup.bash
+    ros2 run launcher_service heat_seeker_node
 
 On Laptop - Terminal 1:
 
-ros2 launch slam_toolbox online_async_launch.py use_sim_time:=false
+    ros2 launch slam_toolbox online_async_launch.py use_sim_time:=false
 
 On Laptop - Terminal 2:
 
-ros2 launch nav2_bringup navigation_launch.py use_sim_time:=false params_file:=/home/pavithra/colcon_ws/src/Autonomous-Explorer-and-Mapper-ros2-nav2/nav2_params.yaml
+    ros2 launch nav2_bringup navigation_launch.py use_sim_time:=false params_file:=/home/pavithra/colcon_ws/src/Autonomous-Explorer-and-Mapper-ros2-nav2/nav2_params.yaml
 
 On Laptop - Terminal 3:
 
-ros2 run custom_explorer explorer
+    cd ~/colcon_ws
+    colcon build --packages-select custom_explorer
+    source install/setup.bash
+
+    ros2 run custom_explorer explorer
 
 On Laptop - Terminal 4:
 
-ros2 launch nav2_bringup rviz_launch.py
+    ros2 launch nav2_bringup rviz_launch.py
 
 ## How It Works
 
