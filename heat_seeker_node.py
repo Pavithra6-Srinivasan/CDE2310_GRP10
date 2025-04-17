@@ -1,4 +1,4 @@
-import rclpy
+t rclpy
 from rclpy.node import Node
 from std_srvs.srv import Trigger
 from adafruit_amg88xx import AMG88XX
@@ -35,9 +35,9 @@ class HeatSeekerNode(Node):
         self.resume_client = self.create_client(Trigger, 'resume_navigation')
 
         # Heat detection parameters
-        self.heat_threshold = 30.0
+        self.heat_threshold = 28.5
         self.heat_detection_count = 0
-        self.detection_threshold = 1  # Require 3 consecutive detections
+        self.detection_threshold = 1
         self.has_launched = False
 
         # Publisher to notify explorer
@@ -89,14 +89,61 @@ class HeatSeekerNode(Node):
             response = future.result()
             if response.success:
                 self.get_logger().info("Navigation stopped. Launching...")
+
+                pixels = np.array(self.sensor.pixels)
+                max_temp = np.max(pixels)
+
+                # Get max heat source
+                max_index = np.unravel_index(np.argmax(pixels), pixels.shape)
+                max_temp = pixels[max_index]
+                self.get_logger().info(f"Hottest point: {max_index} at {max_temp:.2f}°C")
+
+                # Rotate until center-aligned (column 3 or 4)
+                while max_index[1] < 3 or max_index[1] > 4:
+                    twist = Twist()
+                    twist.linear.x = 0.0
+                    if max_index[1] < 3:
+                        twist.angular.z = 0.2  # Turn left
+                    else:
+                        twist.angular.z = -0.2  # Turn right
+
+                    start_time = time.time()
+                    while time.time() - start_time < 0.2:
+                        self.cmd_vel_pub.publish(twist)
+                        time.sleep(0.05)
+                    self.cmd_vel_pub.publish(Twist())  # Stop
+
+                    # Update pixels after turn
+                    pixels = np.array(self.sensor.pixels)
+                    max_temp = np.max(pixels)
+                    max_index = np.unravel_index(np.argmax(pixels), pixels.shape)
+
+                # Move forward until close enough
+                while max_temp < 33.0:
+                    twist = Twist()
+                    twist.angular.z = 0.0
+                    twist.linear.x = 0.2
+                    start_time = time.time()
+                    while time.time() - start_time < 0.2:
+                        self.cmd_vel_pub.publish(twist)
+                        time.sleep(0.05)
+                    self.cmd_vel_pub.publish(Twist())  # Stop
+
+                    # Update temperature reading
+                    pixels = np.array(self.sensor.pixels)
+                    max_temp = np.max(pixels)
+                    max_index = np.unravel_index(np.argmax(pixels), pixels.shape)
+
+                self.get_logger().info("Heat source close. Firing projectile!")
                 self.launch_projectile()
+
             else:
-                self.get_logger().error("Failed to stop navigation")
+                self.get_logger().error("Failed to stop navigation.")
                 self.reset_launch_state()
+
         except Exception as e:
             self.get_logger().error(f"Stop service error: {e}")
             self.reset_launch_state()
-
     def launch_projectile(self):
         try:
             from . import launcher  # Local module for actual launching
@@ -154,6 +201,7 @@ class HeatSeekerNode(Node):
             response.success = False
             response.message = "Launcher already triggered."
         return response
+
 def main(args=None):
     rclpy.init(args=args)
     try:
