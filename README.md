@@ -8,28 +8,17 @@
 
 Hardware Components:
 
-    Raspberry Pi 4 Model B
-
-    AMG8833 Thermal Camera
-
-    Servo Motor for Projectile Launching
-
-    DC Motors with Motor Driver
-
-    Power Supply (Battery Pack)
-
-    Chassis and Wheels​
-    techwithmaddy.com+5GitHub+5WIRED+5
+- Raspberry Pi 4 Model B
+- OpenCR
+- AMG8833 Thermal Camera
+- 5N Actuator
+- DC Motors with Motor Driver
 
 Software Components:
-
-    ROS 2 (Robot Operating System)
-
-    Python 3
-
-    Custom ROS 2 Nodes: heat_seeker_node.py, explorer.py
-
-    Libraries: numpy, rclpy, adafruit_amg88xx, geometry_msgs, std_msgs
+- ROS 2 (Robot Operating System)
+- Python 3
+- Custom ROS 2 Nodes: heat_seeker_node.py, explorer.py
+- Libraries: numpy, rclpy, adafruit_amg88xx, geometry_msgs, std_msgs
 
 - **Frontier Detection**: Automatically detects frontiers (unknown areas) in the map.
 - **Autonomous Navigation**: Uses Nav2's `NavigateToPose` action to navigate to frontiers.
