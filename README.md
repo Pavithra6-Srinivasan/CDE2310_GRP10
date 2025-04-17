@@ -29,6 +29,7 @@ On RPi- Terminal 2:
     colcon build --packages-select launcher_service
     source install/setup.bash
 
+
     source ~/ros2_ws/install/setup.bash
     ros2 run launcher_service heat_seeker_node
 
@@ -45,6 +46,7 @@ On Laptop - Terminal 3:
     cd ~/colcon_ws
     colcon build --packages-select custom_explorer
     source install/setup.bash
+
 
     ros2 run custom_explorer explorer
 
