@@ -12,6 +12,8 @@ This repository contains a ROS 2 package implementing an autonomous frontier exp
 - **ROS 2-Based**: Compatible with ROS 2 (tested on Humble or Foxy distribution).
 - **Customizable Timer**: Adjust the exploration frequency as needed.
 
+---
+
 ## Setup
 
 colcon build --packages-select custom_explorer
@@ -49,6 +51,8 @@ On Laptop - Terminal 3:
 On Laptop - Terminal 4:
 
     ros2 launch nav2_bringup rviz_launch.py
+
+---
 
 ## How It Works
 
