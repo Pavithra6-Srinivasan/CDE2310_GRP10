@@ -167,7 +167,7 @@ class ExplorerNode(Node):
 
         self.get_logger().info("Navigation completed.")
         # self.stop_robot()  # Ensure robot stops after navigation completes
-
+        self.is_backtracking = False
         # After stopping, find the next frontier to navigate to
         self.explore()  # Trigger the exploration process again
     
