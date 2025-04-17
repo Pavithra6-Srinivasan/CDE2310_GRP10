@@ -30,14 +30,29 @@ Software Components:
 
 ## Setup
 
+1. Clone the repository into your ROS 2 workspace:
+
+    cd ~/colcon_ws/src
+    git clone https://github.com/Pavithra6-Srinivasan/CDE2310_GRP10
+    cd ~/ros2_ws
+    colcon build
+
+2. Install dependencies:
+
+    pip install numpy
+
+3. Source the workspace:
+
+    source ~/colcon_ws/install/setup.bash
+
 colcon build --packages-select custom_explorer
 
-On RPi - Terminal 1:
+1. On RPi - Terminal 1:
 
     source ~/turtlebot3_ws/install/setup.bash
     ros2 launch turtlebot3_bringup robot.launch.py
 
-On RPi- Terminal 2:
+2. On RPi- Terminal 2:
 
     cd ~/ros2_ws
     colcon build --packages-select launcher_service
@@ -47,26 +62,51 @@ On RPi- Terminal 2:
     source ~/ros2_ws/install/setup.bash
     ros2 run launcher_service heat_seeker_node
 
-On Laptop - Terminal 1:
+3. On Laptop - Terminal 1:
 
     ros2 launch slam_toolbox online_async_launch.py use_sim_time:=false
 
-On Laptop - Terminal 2:
+4. On Laptop - Terminal 2:
 
     ros2 launch nav2_bringup navigation_launch.py use_sim_time:=false params_file:=/home/pavithra/colcon_ws/src/Autonomous-Explorer-and-Mapper-ros2-nav2/nav2_params.yaml
 
-On Laptop - Terminal 3:
+5. On Laptop - Terminal 3:
 
     cd ~/colcon_ws
     colcon build --packages-select custom_explorer
     source install/setup.bash
 
-
     ros2 run custom_explorer explorer
 
-On Laptop - Terminal 4:
+5. On Laptop - Terminal 4:
 
     ros2 launch nav2_bringup rviz_launch.py
+
+---
+
+## Testing with TurtleBot3
+
+Follow these steps to test the Explorer Node with TurtleBot3 in a Gazebo simulation:
+
+1. Launch the TurtleBot3 world in Gazebo:
+
+    ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
+
+2. Start the Nav2 stack:
+
+    ros2 launch nav2_bringup navigation_launch.py use_sim_time:=True
+
+3. Launch SLAM Toolbox for mapping:
+
+    ros2 launch slam_toolbox online_async_launch.py
+
+4. Launch RViz for visualization:
+
+    ros2 launch nav2_bringup rviz_launch.py
+
+5. Run the Explorer Node:
+
+    ros2 run custom_explorer explorer
 
 ---
 
