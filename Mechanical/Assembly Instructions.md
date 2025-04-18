@@ -10,6 +10,9 @@ Full list of materials can be found under Bill of Materials
 - 2x FC-130A-13220 (DC Motor)
 - 2x Wheel
 - 1x Breadboard
+- 4x M3x35mm spacers
+- Various screws & nuts (see Bill of Materials)
+- Various electrical components (see Electrical folder)
 
 ## 3D Printed Parts Required
 Refer to CAD files (ver 3)  
