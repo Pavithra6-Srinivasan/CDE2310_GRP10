@@ -1,5 +1,3 @@
-# **CAD FILES: https://nusu-my.sharepoint.com/:f:/g/personal/e1123164_u_nus_edu/EgsSIHDlcJ9Jtgn-GGyDcD4B6hNZvN_IMfwkKgeB35VjtQ?e=cNPsOl**
-
 # **CORE DESIGN FEATURES**
 - Tube storing balls wrap around the turtlebot with a slight inclination (~5deg)
     - Reduces the length & width of entire turtlebot, allowing it to traverse tighter spaces
