@@ -49,8 +49,8 @@ Motor driver required to reduce speed via limiting voltage through pulse width m
 
 # **Version Changes**
 **Ver 1**:  
-- Tube wraps around turtlebot
-- Solenoid actuator is used to launch the balls into the air  
+- Tube wraps around TurtleBot
+- A powerful solenoid actuator (rated 45N) is used to launch the balls into the air  
 
 **Ver 2**:  
 - Tube clearance increased from 1mm to 5mm  
@@ -59,8 +59,10 @@ Motor driver required to reduce speed via limiting voltage through pulse width m
 - Added structural supports for the tube  
 
 **Ver 3**:  
-- Added motor & flywheels to launch the balls  
-- Solenoid actuator replaced with a weaker one to push the balls into flywheels  
+- Added motor & flywheels to launch the balls
+    - Solenoid actuator alone has insuffient force to launch the ball to desired height
+- Solenoid actuator replaced with a weaker one (rated 5N) to push the balls into flywheels
+    - Reduces power consumption, size & weight of launching mechanism
 - Slight modification to barrel  
 - Shifting of RPi & USB2LDS
 
