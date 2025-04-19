@@ -30,7 +30,22 @@
     - Reduces friction, prevents ball from getting stuck
     - Accounts for possible manufacturing tolerances
 - Barrel inner diammeter tapers from 5mm clearance to 1mm clearance
-    - Ensure preicision and reliability when launching as the solenoid actuator will ideally strike the ball in the same area
+    - Ensure precision and reliability when launching as the solenoid actuator will strike the ball in the same area
+
+# **Wheel speed calculations**
+Goal: 1.5m launch height  
+Radius of flywheels = 2.5cm
+
+v2 = u2 + 2ah  
+0 = u2 + 2(-9.81m/s2)(1.5m)  
+Launch speed required, u = 5.43m/s
+
+u = rw  
+5.43m/s = 0.025m*w  
+Angular velocity required, w = 217.2 rad s-1 = 2071 rpm
+
+Max rpm under load: 4500 rpm  
+Motor driver required to reduce speed via limiting voltage through pulse width modulation
 
 # **Version Changes**
 **Ver 1**:  
