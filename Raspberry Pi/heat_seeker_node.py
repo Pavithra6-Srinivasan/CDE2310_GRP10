@@ -1,4 +1,4 @@
-t rclpy
+import rclpy
 from rclpy.node import Node
 from std_srvs.srv import Trigger
 from adafruit_amg88xx import AMG88XX
@@ -14,7 +14,7 @@ class HeatSeekerNode(Node):
         super().__init__('heat_seeker')
         self.get_logger().info(" Heat Seeker Node Started")
 
-        # AMG8833 setup
+        # Initialise AMG8833 thermal sensor
         try:
             i2c = busio.I2C(board.SCL, board.SDA)
             while not i2c.try_lock():
@@ -25,12 +25,12 @@ class HeatSeekerNode(Node):
         except Exception as e:
             self.get_logger().error(f"Failed to initialize sensor: {e}")
             raise
-
-        # Create service FIRST so explorer.py can find it!
+            
+        # Create service to trigger the launcher from explorer node
         self.create_service(Trigger, 'trigger_launcher', self.trigger_launcher_callback)
         self.get_logger().info("trigger_launcher service created.")
 
-        # Stop and resume services (from laptop)
+        # Clients to stop and resume the robot's navigation
         self.stop_client = self.create_client(Trigger, 'stop_navigation')
         self.resume_client = self.create_client(Trigger, 'resume_navigation')
 
@@ -40,14 +40,15 @@ class HeatSeekerNode(Node):
         self.detection_threshold = 1
         self.has_launched = False
 
-        # Publisher to notify explorer
+        # Publisher to notify heat detection and send velocity commands
         self.heat_pub = self.create_publisher(Bool, '/heat_detected', 10)
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
 
-        # Faster checking rate
+        # Check for heat every 0.5 seconds
         self.timer = self.create_timer(0.5, self.check_heat)
 
     def check_heat(self):
+        # Continuously reads thermal sensor data and reacts to high temperatures.
         try:
             pixels = self.sensor.pixels
             max_temp = np.max(pixels)
@@ -61,7 +62,7 @@ class HeatSeekerNode(Node):
             # Log the highest temp
             self.get_logger().info(f"Max Temperature: {max_temp:.2f}°C")
 
-            # Heat detection logic
+            # If max temperature exceeds threshold and launcher hasn't been used yet
             if max_temp > self.heat_threshold:
 
                 if not self.has_launched:
@@ -73,27 +74,29 @@ class HeatSeekerNode(Node):
             self.get_logger().error(f"Sensor error: {e}")
 
     def handle_heat_detected(self):
+        # Triggered when a heat source is detected. Begins heat response protocol.
         self.get_logger().warning(" HEAT SOURCE DETECTED")
         self.has_launched = True
 
-        # Notify explorer
+        # Notify explorer on laptop
         msg = Bool()
         msg.data = True
         self.heat_pub.publish(msg)
 
-        # Stop navigation
+        # Request to stop the robot's navigation
         self.call_service(self.stop_client, "stop_navigation", self.handle_stop_response)
 
     def handle_stop_response(self, future):
+        # After robot stops, align to heat source and move closer before launching
         try:
             response = future.result()
             if response.success:
                 self.get_logger().info("Navigation stopped. Launching...")
-
+                
+                # Get max heat index location
                 pixels = np.array(self.sensor.pixels)
                 max_temp = np.max(pixels)
 
-                # Get max heat source
                 max_index = np.unravel_index(np.argmax(pixels), pixels.shape)
                 max_temp = pixels[max_index]
                 self.get_logger().info(f"Hottest point: {max_index} at {max_temp:.2f}°C")
@@ -144,11 +147,13 @@ class HeatSeekerNode(Node):
         except Exception as e:
             self.get_logger().error(f"Stop service error: {e}")
             self.reset_launch_state()
+            
     def launch_projectile(self):
+        # Launches projectile and resumes navigation.
         try:
             from . import launcher  # Local module for actual launching
 
-            # Force stop robot immediately
+            # Ensure robot is completely stopped
             twist = Twist()
             twist.linear.x = 0.0
             twist.angular.z = 0.0
@@ -165,6 +170,7 @@ class HeatSeekerNode(Node):
             self.reset_launch_state()
 
     def handle_resume_response(self, future):
+        # Handles response from resume_navigation service.
         try:
             response = future.result()
             if response.success:
@@ -177,6 +183,7 @@ class HeatSeekerNode(Node):
             self.reset_launch_state()
 
     def call_service(self, client, name, callback):
+        # Helper to call a Trigger service and attach a callback.
         if not client.wait_for_service(timeout_sec=1.0):
             self.get_logger().error(f"{name} service not available")
             return False
@@ -187,10 +194,12 @@ class HeatSeekerNode(Node):
         return True
 
     def reset_launch_state(self):
+        # Resets flags so the robot can react to new heat sources.
         self.has_launched = False
         self.heat_detection_count = 0
 
     def trigger_launcher_callback(self, request, response):
+        # Service callback to externally trigger the heat handling sequence.
         if not self.has_launched:
             self.get_logger().info("Received trigger_launcher service call.")
             self.has_launched = True
