@@ -74,6 +74,7 @@ def solenoid_activation():
     GPIO.output(SOLENOID, GPIO.LOW)
     print("launched 1 ball")
 
+# launching ping pong while stationary
 def test():
     motor_forward(62)
     print("Motors moving")
@@ -85,10 +86,11 @@ def test():
     motor_forward(52)
     time.sleep(1)
     solenoid_activation() #1+1 delay
-    time.sleep(1) #to give time for ball to leave
+    time.sleep(1)
     motor_stop()
     print("Motors stopped")
 
+# launching ping pong while navigating
 def launch():
     motor_forward(70)
     print("Motors moving")
@@ -100,32 +102,9 @@ def launch():
     motor_forward(60)
     time.sleep(1)
     solenoid_activation() #1+1 delay
-    time.sleep(1) #to give time for ball to leave
+    time.sleep(1) 
     motor_stop()
     print("Motors stopped")
-
-# ROS2 service server node
-class LauncherNode(Node):
-    def __init__(self):
-        super().__init__('launcher_node')
-        self.srv = self.create_service(Trigger, 'launch_projectile', self.launch_cb)
-        self.get_logger().info('Launcher service ready.')
-
-    def launch_cb(self, request, response):
-        self.get_logger().info(" Launch triggered via service.")
-        launch()
-        response.success = True
-        response.message = "Projectile launched"
-        return response
-
-def main(args=None):
-    rclpy.init(args=args)
-    node = LauncherNode()
-    try:
-        rclpy.spin(node)
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
