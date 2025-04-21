@@ -24,28 +24,121 @@ Software Components:
 - **Autonomous Navigation**: Uses Nav2's `NavigateToPose` action to navigate to frontiers.
 - **Dynamic Goal Selection**: Chooses the closest unexplored frontier for efficient exploration.
 - **ROS 2-Based**: Compatible with ROS 2 (tested on Humble or Foxy distribution).
-- **Customizable Timer**: Adjust the exploration frequency as needed.
+- **Backtracking**: Backtracks after reaching dead-end in a maze.
 
+## How It Works
+
+1. **Map Subscription**: Subscribes to the `/map` topic to receive occupancy grid maps.
+2. **Frontier Detection**: Identifies free cells adjacent to unknown areas as frontiers.
+3. **Navigation**: Sends goals to Nav2's `NavigateToPose` action server for autonomous navigation to the closest frontier.
+4. **Dynamic Goal Selection**: Continuously updates and selects frontiers during exploration.
+5. 
 ---
 
-## Setup
+## Setup (Laptop)
 
-1. Clone the repository into your ROS 2 workspace:
+**Step 1: Create workspace and import custom explorer package from repository**
+
+    mkdir -p ~/colcon_ws/src
+    cd ~/colcon_ws/src
+
+**Step 2: Import files from this repository**
+
+Below is the file structure of the custom explorer package on the laptop:
+    colcon_ws/
+    ├──src/
+       ├──Autonomous-Explorer-and-Mapper-ros2-nav2/
+          ├── custom_explorer/
+              │   ├── __init__.py
+              │   ├── **explorer.py**
+              |   └── test/
+              |       ├── test.copyright.py
+              |       ├── test_flake8.py
+              |       └── test_pep257.py
+              ├── package.xml
+              ├── setup.cfg
+              └── setup.py
+
+Clone the repository into your ROS 2 workspace:
 
     cd ~/colcon_ws/src
     git clone https://github.com/Pavithra6-Srinivasan/CDE2310_GRP10
-    cd ~/ros2_ws
-    colcon build
 
-2. Install dependencies:
+**Step 3: Ensure neccessary dependancies are installed**
+
+You need:
+- ROS 2 Humble
+- nav2_bringup
+- -slam_toolbox
+- turtlebot3 packages
+- rviz2
+- Gazebo (for simulation testing)
+
+    sudo apt update
+    sudo apt install ros-humble-navigation2
+    sudo apt install ros-humble-nav2-bringup
+    sudo apt install ros-humble-slam-toolbox
+    sudo apt install ros-humble-rviz2
+    sudo apt install ros-humble-turtlebot3*  # Installs all turtlebot3 packages
+    sudo apt install gazebo ros-humble-turtlebot3-gazebo
+    sudo apt install ros-humble-turtlebot3-gazebo
+    sudo apt install ros-humble-gazebo-ros-pkgs
+
+Install python library:
 
     pip install numpy
 
-3. Source the workspace:
+**Step 4: Build workspace**
 
-    source ~/colcon_ws/install/setup.bash
+    cd ~/colcon_ws
+    colcon build
+    source install/setup.bash
 
-colcon build --packages-select custom_explorer
+---
+
+## Setup (Raspberry Pi)
+
+**Step 1: Create workspace and launcher_service package**
+
+    mkdir -p ~/ros2_ws/src
+    cd ~/launcher_ws/src
+    ros2 pkg create --build-type ament_python launcher_service --dependencies rclpy std_srvs
+
+**Step 2: Import *heat_seeker_node.py* and *launcher.py* files are in the Raspberry Pi folder of this repository.**
+
+Below is the file structure of the launcher service package on the Raspberry Pi:
+
+    ros2_ws/
+    ├──src/
+       ├──launcher_service/
+          ├── launcher_service/
+              │   ├── __init__.py
+              │   ├── **heat_seeker_node.py**
+              │   └── **launcher.py**
+              ├── package.xml
+              └── setup.py
+
+**Step 3: Ensure setup.py is configured properly**
+
+    package_name = 'launcher_service'
+
+**Step 4: Ensure neccessary dependancies are installed**
+
+1. ROS2 for raspberry pi: [https://docs.ros.org/en/humble/How-To-Guides/Installing-on-Raspberry-Pi.html]
+
+**Step 5: Install Python libraries on Rpi for AMG8833**
+
+    pip3 install adafruit-circuitpython-amg88xx numpy
+    
+    sudo apt-get install i2c-tools
+
+Make sure I2C interface enabled:
+
+    sudo raspi-config → Interfacing Options → I2C → Enable
+
+---
+
+## Strting the robot
 
 1. On RPi - Terminal 1:
 
@@ -57,7 +150,6 @@ colcon build --packages-select custom_explorer
     cd ~/ros2_ws
     colcon build --packages-select launcher_service
     source install/setup.bash
-
 
     source ~/ros2_ws/install/setup.bash
     ros2 run launcher_service heat_seeker_node
@@ -109,22 +201,6 @@ Follow these steps to test the Explorer Node with TurtleBot3 in a Gazebo simulat
     ros2 run custom_explorer explorer
 
 ---
-
-## How It Works
-
-1. **Map Subscription**: Subscribes to the `/map` topic to receive occupancy grid maps.
-2. **Frontier Detection**: Identifies free cells adjacent to unknown areas as frontiers.
-3. **Navigation**: Sends goals to Nav2's `NavigateToPose` action server for autonomous navigation to the closest frontier.
-4. **Dynamic Goal Selection**: Continuously updates and selects frontiers during exploration.
-
----
-
-## Code Structure
-
-- `explorer.py`: Main node for detecting frontiers and sending navigation goals.
-- `requirements.txt`: Python dependencies.
-- `README.md`: Project documentation.
-
 
 ## Acknowledgments
 
