@@ -23,16 +23,16 @@ class ExplorerNode(Node):
         # Publishers
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
 
-        # Action Client
+        # Navigation Action Client
         self.nav_to_pose_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
         self.current_goal_handle = None
 
-        # Service Client
+        # Service Client to trigger launcher
         self.cli = self.create_client(Trigger, 'trigger_launcher')
         while not self.cli.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('Waiting for trigger service...')
 
-        # State
+        # Internal State Variables
         self.map_data = None
         self.robot_position = (0, 0)
         self.robot_pose_world = (0.0, 0.0)
@@ -46,30 +46,26 @@ class ExplorerNode(Node):
         # Timer
         self.timer = self.create_timer(5.0, self.explore)
 
-        # For canceling navigation and stopping robot
+        # Stop and Resume Services
         self.cb_group = ReentrantCallbackGroup()
+        
         self.stop_srv = self.create_service(
             Trigger, 'stop_navigation', self.handle_stop_navigation, callback_group=self.cb_group)
 
         self.resume_srv = self.create_service(
             Trigger, 'resume_navigation', self.handle_resume_exploration, callback_group=self.cb_group)
 
+        # More Internal State Variables
         self.active_goal_handle = None
-
         self.initial_pose = None
         self.launched_positions = set()
         self.launch_distance_threshold = 0.4
-
-        # Add stop/resume services
-        #self.create_service(Trigger, 'stop_navigation', self.handle_stop_navigation)
-        #self.create_service(Trigger, 'resume_navigation', self.handle_resume_exploration)
-
-        # Track paused state
         self.paused = False
 
     # ------------------------ Heat Handling ------------------------
 
     def handle_stop_navigation(self, request, response):
+        # Handles stop request when heat source is detected
         self.get_logger().info("Received request to stop navigation")
 
         # Cancel active navigation goal
@@ -87,6 +83,7 @@ class ExplorerNode(Node):
         return response
 
     def handle_resume_exploration(self, request, response):
+        # Handles resume request after launcher is fired
         self.get_logger().info("RESUME command received from heat_seeker.")
         self.paused = False
         response.success = True
@@ -96,9 +93,11 @@ class ExplorerNode(Node):
     # ------------------------ Navigation ------------------------
 
     def map_callback(self, msg):
+        # store current map
         self.map_data = msg
 
     def pose_callback(self, msg):
+        # Updates robot's position in both world and grid coordinates
         pose = msg.pose.pose
         self.robot_pose_world = (pose.position.x, pose.position.y)
 
@@ -112,13 +111,18 @@ class ExplorerNode(Node):
             row = int((pose.position.y - origin.y) / res)
             self.robot_position = (row, col)
 
-    def explore(self):
-        if self.map_data is None or self.heat_handling:
-            return
+    # ========================== Main Exploration Logic ==========================
 
+    def explore(self):
+        # Main loop that triggers every few seconds to explore
+        if self.map_data is None or self.heat_handling:
+            return # skip if map is not ready or heat is being handled
+
+        # Convert map to numpy array
         map_array = np.array(self.map_data.data).reshape(
             (self.map_data.info.height, self.map_data.info.width))
-
+        
+        # Detect frontiers and unexplored areas
         frontiers = self.find_frontiers(map_array)
         frontiers += self.check_unexplored_areas(map_array)
 
@@ -127,14 +131,15 @@ class ExplorerNode(Node):
             self.retry_from_furthest_area()
             return
 
+        # Select frontier and send navigation goal
         chosen_frontier = self.choose_frontier(frontiers)
-
         if chosen_frontier:
             x = chosen_frontier[1] * self.map_data.info.resolution + self.map_data.info.origin.position.x
             y = chosen_frontier[0] * self.map_data.info.resolution + self.map_data.info.origin.position.y
             self.navigate_to(x, y)
 
     def navigate_to(self, x, y):
+        # Sends a navigation goal to the specified (x, y) location
         goal_msg = PoseStamped()
         goal_msg.header.frame_id = 'map'
         goal_msg.header.stamp = self.get_clock().now().to_msg()
@@ -151,6 +156,7 @@ class ExplorerNode(Node):
         send_goal_future.add_done_callback(self.goal_response_callback)
 
     def goal_response_callback(self, future):
+        # Called when goal is accepted or rejected
         goal_handle = future.result()
         if not goal_handle.accepted:
             self.get_logger().warning("Goal rejected.")
@@ -162,18 +168,18 @@ class ExplorerNode(Node):
         result_future.add_done_callback(self.navigation_complete_callback)
         
     def navigation_complete_callback(self, future):
+        # Called when navigation completes or is interrupted
         if self.heat_handling:
             self.get_logger().info("Navigation interrupted due to heat.")
-            self.stop_robot()  # Ensure robot stops if interrupted by heat
+            self.stop_robot()
             return
 
         self.get_logger().info("Navigation completed.")
-        # self.stop_robot()  # Ensure robot stops after navigation completes
         self.is_backtracking = False
-        # After stopping, find the next frontier to navigate to
-        self.explore()  # Trigger the exploration process again
+        self.explore()  # continue exploring
     
     def stop_robot(self):
+        # Publishes zero velocity to stop the robot
         stop_msg = Twist()
         stop_msg.linear.x = 0.0
         stop_msg.angular.z = 0.0
@@ -181,15 +187,17 @@ class ExplorerNode(Node):
         self.get_logger().info("Robot stopped.")
 
     def _cancel_done_callback(self, future):
+        # Logs whether canceling the goal was successful
         cancel_response = future.result()
         if len(cancel_response.goals_canceling) > 0:
             self.get_logger().info("Navigation goal canceled")
         else:
             self.get_logger().warning("No goals were canceled")
 
-    # ------------------------ Exploration ------------------------
+    # ------------------------ Frontier Detection ------------------------
 
     def find_frontiers(self, map_array):
+        # Finds frontiers — free cells next to unknown cells
         frontiers = []
         rows, cols = map_array.shape
 
@@ -203,6 +211,7 @@ class ExplorerNode(Node):
         return frontiers
 
     def choose_frontier(self, frontiers):
+        # Chooses the nearest unexplored frontier
         robot_row, robot_col = self.robot_position
         min_distance = float('inf')
         chosen = None
@@ -232,6 +241,7 @@ class ExplorerNode(Node):
         return chosen
 
     def check_unexplored_areas(self, map_array):
+        # Adds unknown cells (-1) to frontier list (if not visited)
         unexplored = []
         for r in range(map_array.shape[0]):
             for c in range(map_array.shape[1]):
@@ -240,9 +250,9 @@ class ExplorerNode(Node):
         return unexplored
 
     def retry_from_furthest_area(self):
+        # If no frontiers are found, go back to initial or center position
         self.get_logger().info("No more valid frontiers. Restarting exploration from the starting position.")
         
-        # Optional: Set a default restart position (e.g., maze center or known safe spot)
         if hasattr(self, "initial_pose"):
             self.navigate_to(*self.initial_pose)
         elif self.visited_world_positions:
