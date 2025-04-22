@@ -1,5 +1,7 @@
 # System Functionality
 
+---
+
 - **Frontier Detection**: Automatically detects frontiers (unknown areas) in the map.
 - **Autonomous Navigation**: Uses Nav2's `NavigateToPose` action to navigate to frontiers.
 - **Dynamic Goal Selection**: Chooses the closest unexplored frontier for efficient exploration.
@@ -12,6 +14,8 @@
 2. **Frontier Detection**: Identifies free cells adjacent to unknown areas as frontiers.
 3. **Navigation**: Sends goals to Nav2's `NavigateToPose` action server for autonomous navigation to the closest frontier.
 4. **Dynamic Goal Selection**: Continuously updates and selects frontiers during exploration.
+
+---
 
 ## Explorer.py (Laptop):
 
@@ -114,3 +118,103 @@ callbacks such as cancelling goals or handling navigation completion.
       self.navigate_to(*closest)
 
 If all frontiers have been visited or the robot is trapped, the retry_from_furthest_area() function resets exploration from the initial pose or the point closest to the map center, enabling full coverage even in complex environments.
+
+---
+
+**heat_seeke_node.py (Raspberry Pi):**
+
+This file has a ROS2 Python node designed to enable the robot to autonomously detct and respond temperatures above threshold values using the AMG8833 thermal infrared sensor. It integrates thermal sensing, robot motion control, server-based commication to support the triggering of a launching mechanism when heat is detected.
+
+**Node Initialisation**
+
+*Refer to Electrical/ for AMG8833 sensor and launcher mechanism setup*
+
+Upon starting, the node initialises I2C bus and sets up communication with AMG8833 sensor. The sensor provides 8x8 array of temperature readings which are used to detect presence of heat sources. 
+
+**Communication**
+
+    self.create_service(Trigger, 'trigger_launcher', self.trigger_launcher_callback)
+    self.get_logger().info("trigger_launcher service created.")
+    
+    self.stop_client = self.create_client(Trigger, 'stop_navigation')
+    self.resume_client = self.create_client(Trigger, 'resume_navigation')
+
+The node provides a ROS srrvice names *trigger_launcher*, which is called externally fron *ExplorerNode* to intiate heat seeking and ping pong launching mechanism. The node also acts as a client to 2 external services *stop_navigation* and *resume_navigation*, which pause and resume robot movement respectively. 
+
+**Heat Detection Logic**
+
+    try:
+        pixels = self.sensor.pixels
+        max_temp = np.max(pixels)
+    
+        # Print the 8x8 matrix
+        self.get_logger().info("AMG8833 Temperature Grid (°C):")
+        for row in pixels:
+            row_str = " ".join(f"{temp:5.1f}" for temp in row)
+            self.get_logger().info(row_str)
+    
+        # Log the highest temp
+        self.get_logger().info(f"Max Temperature: {max_temp:.2f}°C")
+    
+        # If max temperature exceeds threshold and launcher hasn't been used yet
+        if max_temp > self.heat_threshold:
+    
+            if not self.has_launched:
+                self.handle_heat_detected()
+        else:
+            self.heat_detection_count = 0
+
+Main function runs through loop to check AMG8833 readings. It analyses the sensor's 8x8 matrix to identify the highest temperature detected robots's field of view. If this maximum temperature exceeds a defined threshold and robot has not already launched the ping pong, it triggers head handling sequence.
+
+**Heat Source  Detection**
+
+      pixels = np.array(self.sensor.pixels)
+      max_temp = np.max(pixels)
+      
+      max_index = np.unravel_index(np.argmax(pixels), pixels.shape)
+      max_temp = pixels[max_index]
+      self.get_logger().info(f"Hottest point: {max_index} at {max_temp:.2f}°C")
+      
+      while max_index[1] < 3 or max_index[1] > 4:
+          twist = Twist()
+          twist.linear.x = 0.0
+          if max_index[1] < 3:
+              twist.angular.z = 0.2  # Turn left
+          else:
+              twist.angular.z = -0.2  # Turn right
+      
+          start_time = time.time()
+          while time.time() - start_time < 0.2:
+              self.cmd_vel_pub.publish(twist)
+              time.sleep(0.05)
+          self.cmd_vel_pub.publish(Twist())  # Stop
+      
+          # Update pixels after turn
+          pixels = np.array(self.sensor.pixels)
+          max_temp = np.max(pixels)
+          max_index = np.unravel_index(np.argmax(pixels), pixels.shape)
+      
+      while max_temp < 33.0:
+          twist = Twist()
+          twist.angular.z = 0.0
+          twist.linear.x = 0.2
+          start_time = time.time()
+          while time.time() - start_time < 0.2:
+              self.cmd_vel_pub.publish(twist)
+              time.sleep(0.05)
+          self.cmd_vel_pub.publish(Twist())  # Stop
+      
+          # Update temperature reading
+          pixels = np.array(self.sensor.pixels)
+          max_temp = np.max(pixels)
+          max_index = np.unravel_index(np.argmax(pixels), pixels.shape)
+      
+      self.get_logger().info("Heat source close. Firing projectile!")
+      self.launch_projectile()
+
+When a heat source is detected, the node performs several coordinated actions:
+1. Detection: It publishes a message to the /heat_detected topic.
+2. Navigation Stopping: The robot requests the stop_navigation service to pause navigation.
+3. Rotational Alignment: The robot rotates left or right based on the column position of the hottest pixel until it is centered (columns 3 or 4) to the heat source.
+4. Forward Approach: The robot moves forward while monitoring the temperature. Once the temperature reaches a closer threshold, it begins preparation for launching.
+5. Projectile Launch: The node calls a local module named launcher to activate launching mechanism.
