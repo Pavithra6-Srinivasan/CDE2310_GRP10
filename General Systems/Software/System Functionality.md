@@ -37,15 +37,12 @@ The node maintains several internal variables to track the robot's state:
 
 **Frontier-Based Navigation Logic**
   
-  # Convert map to numpy array
   map_array = np.array(self.map_data.data).reshape(
       (self.map_data.info.height, self.map_data.info.width))
   
-  # Detect frontiers and unexplored areas
   frontiers = self.find_frontiers(map_array)
   frontiers += self.check_unexplored_areas(map_array)
   
-  # Select frontier and send navigation goal
   chosen_frontier = self.choose_frontier(frontiers)
   if chosen_frontier:
       x = chosen_frontier[1] * self.map_data.info.resolution + self.map_data.info.origin.position.x
@@ -87,7 +84,6 @@ function indetifies cells with free space (0) adjacent to unknown space (-1)., m
 The algorithm will then select the frontier to naviagte to using *choose_frontier()*. This function claculates Euclidean distance from robots's current position to each candidate. 
 It filers out frontiers already visited ort too close to current position and avoids revisiting unless backtracking is required.
 
-  # Sends a navigation goal to the specified (x, y) location
   goal_msg = PoseStamped()
   goal_msg.header.frame_id = 'map'
   goal_msg.header.stamp = self.get_clock().now().to_msg()
