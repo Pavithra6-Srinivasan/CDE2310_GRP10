@@ -37,62 +37,62 @@ The node maintains several internal variables to track the robot's state:
 
 **Frontier-Based Navigation Logic**
   
-  map_array = np.array(self.map_data.data).reshape(
-      (self.map_data.info.height, self.map_data.info.width))
-  
-  frontiers = self.find_frontiers(map_array)
-  frontiers += self.check_unexplored_areas(map_array)
-  
-  chosen_frontier = self.choose_frontier(frontiers)
-  if chosen_frontier:
-      x = chosen_frontier[1] * self.map_data.info.resolution + self.map_data.info.origin.position.x
-      y = chosen_frontier[0] * self.map_data.info.resolution + self.map_data.info.origin.position.y
-      self.navigate_to(x, y)
+    map_array = np.array(self.map_data.data).reshape(
+        (self.map_data.info.height, self.map_data.info.width))
+    
+    frontiers = self.find_frontiers(map_array)
+    frontiers += self.check_unexplored_areas(map_array)
+    
+    chosen_frontier = self.choose_frontier(frontiers)
+    if chosen_frontier:
+        x = chosen_frontier[1] * self.map_data.info.resolution + self.map_data.info.origin.position.x
+        y = chosen_frontier[0] * self.map_data.info.resolution + self.map_data.info.origin.position.y
+        self.navigate_to(x, y)
 
 *explore()* is the main method that is triggered every 5 seconds via a timer. This method converts occupancy grid into a NumPy array and scans for frontiers. The *find_frontiers()* 
 function indetifies cells with free space (0) adjacent to unknown space (-1)., makring them as potential goals to navigate to.
   
-  for r in range(1, rows - 1):
-      for c in range(1, cols - 1):
-          if map_array[r, c] == 0:
-              neighbors = map_array[r-1:r+2, c-1:c+2].flatten()
-              if -1 in neighbors:
-                  frontiers.append((r, c))
-
-  for f in frontiers:
-      if f in self.visited_frontiers:
-          continue
+    for r in range(1, rows - 1):
+        for c in range(1, cols - 1):
+            if map_array[r, c] == 0:
+                neighbors = map_array[r-1:r+2, c-1:c+2].flatten()
+                if -1 in neighbors:
+                    frontiers.append((r, c))
   
-      world_x = f[1] * self.map_data.info.resolution + self.map_data.info.origin.position.x
-      world_y = f[0] * self.map_data.info.resolution + self.map_data.info.origin.position.y
-      pos = (round(world_x, 2), round(world_y, 2))
-  
-      if not self.is_backtracking and pos in self.visited_world_positions:
-          continue
-  
-      dist = np.linalg.norm([robot_row - f[0], robot_col - f[1]])
-      if dist < min_distance and dist > 0.3:
-          min_distance = dist
-          chosen = f
-  
-    if chosen:
-        self.visited_frontiers.add(chosen)
-        x = chosen[1] * self.map_data.info.resolution + self.map_data.info.origin.position.x
-        y = chosen[0] * self.map_data.info.resolution + self.map_data.info.origin.position.y
-        self.visited_world_positions.add((round(x, 2), round(y, 2)))
+    for f in frontiers:
+        if f in self.visited_frontiers:
+            continue
+    
+        world_x = f[1] * self.map_data.info.resolution + self.map_data.info.origin.position.x
+        world_y = f[0] * self.map_data.info.resolution + self.map_data.info.origin.position.y
+        pos = (round(world_x, 2), round(world_y, 2))
+    
+        if not self.is_backtracking and pos in self.visited_world_positions:
+            continue
+    
+        dist = np.linalg.norm([robot_row - f[0], robot_col - f[1]])
+        if dist < min_distance and dist > 0.3:
+            min_distance = dist
+            chosen = f
+    
+      if chosen:
+          self.visited_frontiers.add(chosen)
+          x = chosen[1] * self.map_data.info.resolution + self.map_data.info.origin.position.x
+          y = chosen[0] * self.map_data.info.resolution + self.map_data.info.origin.position.y
+          self.visited_world_positions.add((round(x, 2), round(y, 2)))
   
 The algorithm will then select the frontier to naviagte to using *choose_frontier()*. This function claculates Euclidean distance from robots's current position to each candidate. 
 It filers out frontiers already visited ort too close to current position and avoids revisiting unless backtracking is required.
 
-  goal_msg = PoseStamped()
-  goal_msg.header.frame_id = 'map'
-  goal_msg.header.stamp = self.get_clock().now().to_msg()
-  goal_msg.pose.position.x = x
-  goal_msg.pose.position.y = y
-  goal_msg.pose.orientation.w = 1.0
-  
-  nav_goal = NavigateToPose.Goal()
-  nav_goal.pose = goal_msg
+    goal_msg = PoseStamped()
+    goal_msg.header.frame_id = 'map'
+    goal_msg.header.stamp = self.get_clock().now().to_msg()
+    goal_msg.pose.position.x = x
+    goal_msg.pose.position.y = y
+    goal_msg.pose.orientation.w = 1.0
+    
+    nav_goal = NavigateToPose.Goal()
+    nav_goal.pose = goal_msg
   
 Once a valid frontier is chosen, the robot contructs a NavigateToPose goal and sends it to Nav2 action server using *navigate_to()* method. It monitors responses through 
 callbacks such as cancelling goals or handling navigation completion.
