@@ -11,7 +11,7 @@ Hardware Components:
 - Raspberry Pi 4 Model B
 - OpenCR
 - AMG8833 Thermal Camera
-- 5N Actuator
+- Solenoid Actuator
 - DC Motors with Motor Driver
 
 Software Components:
@@ -33,6 +33,7 @@ Software Components:
 **Step 2: Import files from this repository**
 
 Below is the file structure of the custom explorer package on the laptop:
+
     colcon_ws/
     ├──src/
        ├──Autonomous-Explorer-and-Mapper-ros2-nav2/
@@ -148,7 +149,7 @@ Make sure I2C interface enabled:
 
 4. On Laptop - Terminal 2:
 
-    ros2 launch nav2_bringup navigation_launch.py use_sim_time:=false params_file:=/home/pavithra/colcon_ws/src/Autonomous-Explorer-and-Mapper-ros2-nav2/nav2_params.yaml
+    ros2 launch nav2_bringup navigation_launch.py use_sim_time:=false params_file:=/home/<user>/colcon_ws/src/Autonomous-Explorer-and-Mapper-ros2-nav2/nav2_params.yaml
 
 5. On Laptop - Terminal 3:
 
